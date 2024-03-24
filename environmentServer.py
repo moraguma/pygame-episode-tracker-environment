@@ -33,7 +33,7 @@ class EnvironmentServer:
         rbg_observation = cv2.cvtColor(obs_array, cv2.COLOR_RGB2BGR)
         rbg_observation = cv2.resize(rbg_observation, dsize=(0, 0), fx=2, fy=2, interpolation=cv2.INTER_NEAREST)
 
-        cv2.imwrite("images/cropped_img.tiff", rbg_observation)
+        # cv2.imwrite("images/cropped_img.tiff", rbg_observation)
         img_encode = cv2.imencode('.tiff', rbg_observation)[1]
         data_encode = np.array(img_encode)
         image_byte_encode = data_encode.tobytes()

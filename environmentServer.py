@@ -1,14 +1,23 @@
 import socket
 import cv2
 import numpy as np
+from gym import Env
 
 
 class EnvironmentServer:
-    def __init__(self, port=1025):
+    def __init__(self, env: Env, port=1025):
+        self.env: Env = env
+
+        self.data_payload = 2048
+
         self.client_socket = None
         self.client_address = None
-        port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.observation = None
+        self.reward = None
+        self.terminated = False
+
         # https://stackoverflow.com/questions/4465959/python-errno-98-address-already-in-use
         # avoids socket time wait after closing the socket
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -16,7 +25,27 @@ class EnvironmentServer:
         self.server_socket.listen()
         self.crop = True
 
-    def sendImageToClient(self, observation):
+        while True:
+            self.observation, _ = self.env.reset()
+            self.reward = 0.0
+            self.terminated = False
+            self.sendImageToClient()
+
+            while not self.terminated:
+                self.performNextAction()
+                self.sendImageToClient()
+
+
+    def performNextAction(self):
+        self.client_socket, self.client_address = self.server_socket.accept()
+        print("Accepted action")
+        action_raw_data = self.client_socket.recv(self.data_payload)
+        print(f"Received action - {action_raw_data}")
+        self.client_socket.close()
+
+        self.observation, self.reward, self.terminated, _, _ = self.env.step(action_raw_data)
+
+    def sendImageToClient(self):
         # checks if the observation is a valid image
         if len(observation) != 210:
             return

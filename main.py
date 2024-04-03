@@ -13,10 +13,10 @@ def callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    envServer = EnvironmentServer()
+    env = gym.make("ALE/Freeway-v5", render_mode="rgb_array")
+    envServer = EnvironmentServer(env)
     try:
-        # play(gym.make("ALE/Riverraid-v5", render_mode="rgb_array"), callback=callback, keys_to_action=KEY_MAPPING)
-        play(gym.make("ALE/Freeway-v5", render_mode="rgb_array"), callback=callback, keys_to_action=KEY_MAPPING)
+        envServer.play()
     except KeyboardInterrupt:
         envServer.close_sockets()
         print("KeyBoardInterrupt")

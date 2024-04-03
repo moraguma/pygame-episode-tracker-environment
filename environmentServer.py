@@ -2,10 +2,11 @@ import socket
 import cv2
 import numpy as np
 from gym import Env
+import struct
 
 
 class EnvironmentServer:
-    def __init__(self, env: Env, port=1025):
+    def __init__(self, env, port=1025):
         self.env: Env = env
 
         self.data_payload = 2048
@@ -25,11 +26,17 @@ class EnvironmentServer:
         self.server_socket.listen()
         self.crop = True
 
+    def resetAndSend(self):
+        self.observation, _ = self.env.reset()
+        self.reward = 0.0
+        self.terminated = False
+        self.sendImageToClient()
+
+    def play(self):
+        self.resetAndSend()
+        self.resetAndSend()
         while True:
-            self.observation, _ = self.env.reset()
-            self.reward = 0.0
-            self.terminated = False
-            self.sendImageToClient()
+            self.resetAndSend()
 
             while not self.terminated:
                 self.performNextAction()
@@ -42,15 +49,17 @@ class EnvironmentServer:
         action_raw_data = self.client_socket.recv(self.data_payload)
         print(f"Received action - {action_raw_data}")
         self.client_socket.close()
+        print("Closed action")
 
-        self.observation, self.reward, self.terminated, _, _ = self.env.step(action_raw_data)
+        #self.observation, self.reward, self.terminated, _, _ = self.env.step(action_raw_data)
+        self.observation, self.reward, self.terminated, _, _ = self.env.step(2)
 
     def sendImageToClient(self):
         # checks if the observation is a valid image
-        if len(observation) != 210:
+        if len(self.observation) != 210:
             return
 
-        obs_array = np.asarray(observation, dtype="uint8")
+        obs_array = np.asarray(self.observation, dtype="uint8")
         #riverraid
         # obs_array = obs_array[2:163, 8:160]
 
@@ -68,12 +77,21 @@ class EnvironmentServer:
         image_byte_encode = data_encode.tobytes()
 
         self.client_socket, self.client_address = self.server_socket.accept()
-        print("accept")
         self.client_socket.send(image_byte_encode)
-        print("file sent")
         self.client_socket.close()
+        print("Sent observation")
+        self.client_socket, self.client_address = self.server_socket.accept()
+        self.client_socket.send(struct.pack("f", self.reward))
+        self.client_socket.close()
+        print(f"Sent reward - {self.reward}")
+        self.client_socket, self.client_address = self.server_socket.accept()
+        self.client_socket.send(struct.pack("?", self.terminated))
+        self.client_socket.close()
+        print(f"Sent terminated - {self.terminated}")
+        
+        print("Closed percept")
 
     def close_sockets(self):
-        self.client_socket.close()
+        if not self.client_socket is None:
+            self.client_socket.close()
         self.server_socket.close()
-        return

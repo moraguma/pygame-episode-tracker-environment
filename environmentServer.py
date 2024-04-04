@@ -3,11 +3,12 @@ import cv2
 import numpy as np
 from gym import Env
 import struct
-
+import matplotlib.pyplot as plt
 
 class EnvironmentServer:
     def __init__(self, env, port=1025):
         self.env: Env = env
+        self.frames_per_action = 2
 
         self.data_payload = 2048
 
@@ -33,8 +34,8 @@ class EnvironmentServer:
         self.sendImageToClient()
 
     def play(self):
-        self.resetAndSend()
-        self.resetAndSend()
+        for i in range(2):
+            self.resetAndSend()
         while True:
             self.resetAndSend()
 
@@ -46,13 +47,17 @@ class EnvironmentServer:
     def performNextAction(self):
         self.client_socket, self.client_address = self.server_socket.accept()
         print("Accepted action")
-        action_raw_data = self.client_socket.recv(self.data_payload)
-        print(f"Received action - {action_raw_data}")
+        action_data = int.from_bytes(self.client_socket.recv((self.data_payload)), "big")
+        print(f"Received action - {action_data}")
         self.client_socket.close()
         print("Closed action")
 
         #self.observation, self.reward, self.terminated, _, _ = self.env.step(action_raw_data)
-        self.observation, self.reward, self.terminated, _, _ = self.env.step(2)
+        for i in range(self.frames_per_action):
+            self.observation, self.reward, self.terminated, _, _ = self.env.step(action_data)
+
+        #plt.imshow(self.observation)
+        #plt.show()
 
     def sendImageToClient(self):
         # checks if the observation is a valid image
@@ -88,6 +93,9 @@ class EnvironmentServer:
         self.client_socket.send(struct.pack("?", self.terminated))
         self.client_socket.close()
         print(f"Sent terminated - {self.terminated}")
+
+        #plt.imshow(self.observation)
+        #plt.show()
         
         print("Closed percept")
 

@@ -20,6 +20,12 @@ class EnvironmentServer:
         self.reward = None
         self.terminated = False
 
+        self.max_steps = 100
+        self.total_steps = 0
+
+        self.min_initial_steps = 0
+        self.max_initial_steps = 20
+
         # https://stackoverflow.com/questions/4465959/python-errno-98-address-already-in-use
         # avoids socket time wait after closing the socket
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -28,6 +34,8 @@ class EnvironmentServer:
         self.crop = True
 
     def resetAndSend(self):
+        self.total_steps = 0
+
         self.observation, _ = self.env.reset()
         self.reward = 0.0
         self.terminated = False
@@ -42,19 +50,27 @@ class EnvironmentServer:
             while not self.terminated:
                 self.performNextAction()
                 self.sendImageToClient()
+            self.performNextAction(step=False)
+            
 
 
-    def performNextAction(self):
+
+    def performNextAction(self, step=True):
         self.client_socket, self.client_address = self.server_socket.accept()
-        print("Accepted action")
+        #print("Accepted action")
         action_data = int.from_bytes(self.client_socket.recv((self.data_payload)), "big")
-        print(f"Received action - {action_data}")
+        #print(f"Received action - {action_data}")
         self.client_socket.close()
-        print("Closed action")
+        #print("Closed action")
 
-        #self.observation, self.reward, self.terminated, _, _ = self.env.step(action_raw_data)
-        for i in range(self.frames_per_action):
-            self.observation, self.reward, self.terminated, _, _ = self.env.step(action_data)
+        if step:
+            for i in range(self.frames_per_action):
+                self.observation, self.reward, self.terminated, _, _ = self.env.step(action_data)
+            
+            self.total_steps += 1
+            if self.total_steps >= self.max_steps:
+                self.terminated = True
+                print("Timeout!")
 
         #plt.imshow(self.observation)
         #plt.show()
@@ -65,13 +81,11 @@ class EnvironmentServer:
             return
 
         obs_array = np.asarray(self.observation, dtype="uint8")
-        #riverraid
-        # obs_array = obs_array[2:163, 8:160]
 
         #freeway
         obs_array = obs_array[14:196, 8:160]
 
-        print(obs_array.shape)
+        #print(obs_array.shape)
 
         rbg_observation = cv2.cvtColor(obs_array, cv2.COLOR_RGB2BGR)
         rbg_observation = cv2.resize(rbg_observation, dsize=(0, 0), fx=2, fy=2, interpolation=cv2.INTER_NEAREST)
@@ -84,20 +98,20 @@ class EnvironmentServer:
         self.client_socket, self.client_address = self.server_socket.accept()
         self.client_socket.send(image_byte_encode)
         self.client_socket.close()
-        print("Sent observation")
+        #print("Sent observation")
         self.client_socket, self.client_address = self.server_socket.accept()
         self.client_socket.send(struct.pack("f", self.reward))
         self.client_socket.close()
-        print(f"Sent reward - {self.reward}")
+        #print(f"Sent reward - {self.reward}")
         self.client_socket, self.client_address = self.server_socket.accept()
         self.client_socket.send(struct.pack("?", self.terminated))
         self.client_socket.close()
-        print(f"Sent terminated - {self.terminated}")
+        #print(f"Sent terminated - {self.terminated}")
 
-        #plt.imshow(self.observation)
-        #plt.show()
+        if self.reward != 0.0 or self.terminated != False:
+           print(f"Reward - {self.reward}; Terminated - {self.terminated}")
         
-        print("Closed percept")
+        #print("Closed percept")
 
     def close_sockets(self):
         if not self.client_socket is None:

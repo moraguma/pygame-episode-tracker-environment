@@ -4,6 +4,7 @@ import numpy as np
 from gym import Env
 import struct
 import matplotlib.pyplot as plt
+import cv2
 
 class EnvironmentServer:
     def __init__(self, env, port=1025):
@@ -20,11 +21,18 @@ class EnvironmentServer:
         self.reward = None
         self.terminated = False
 
-        self.max_steps = 100
+        self.lose_reward = -1
+        self.max_steps = 99999999999999
         self.total_steps = 0
 
         self.min_initial_steps = 0
         self.max_initial_steps = 20
+
+        self.chicken_pattern = cv2.cvtColor(cv2.imread("/home/moraguma/git/pygame-episode-tracker-environment/freeway_images/chicken.png"), cv2.COLOR_BGR2RGB)
+        w, h = self.chicken_pattern.shape[1], self.chicken_pattern.shape[0]
+        self.chicken_w, self.chicken_h = w, h
+        self.REWARD_PER_PIXEL = -0.0005
+        self.WIN_REWARD = 10
 
         # https://stackoverflow.com/questions/4465959/python-errno-98-address-already-in-use
         # avoids socket time wait after closing the socket
@@ -37,8 +45,11 @@ class EnvironmentServer:
         self.total_steps = 0
 
         self.observation, _ = self.env.reset()
-        self.reward = 0.0
+        self.reward = self.get_custom_reward(self.observation)
         self.terminated = False
+
+        #self.save_observation(self.observation)
+
         self.sendImageToClient()
 
     def play(self):
@@ -68,12 +79,18 @@ class EnvironmentServer:
                 self.observation, self.reward, self.terminated, _, _ = self.env.step(action_data)
             
             self.total_steps += 1
+            if self.reward != 0:
+                self.reward = self.WIN_REWARD
+                print("Won!")
+            else:
+                self.reward = self.get_custom_reward(self.observation)
+
             if self.total_steps >= self.max_steps:
+                self.reward = self.lose_reward
                 self.terminated = True
                 print("Timeout!")
 
-        #plt.imshow(self.observation)
-        #plt.show()
+        #self.save_observation(self.observation)
 
     def sendImageToClient(self):
         # checks if the observation is a valid image
@@ -108,12 +125,33 @@ class EnvironmentServer:
         self.client_socket.close()
         #print(f"Sent terminated - {self.terminated}")
 
-        if self.reward != 0.0 or self.terminated != False:
-           print(f"Reward - {self.reward}; Terminated - {self.terminated}")
-        
+        if self.terminated:
+            print("Episode ended")
+
         #print("Closed percept")
 
     def close_sockets(self):
         if not self.client_socket is None:
             self.client_socket.close()
         self.server_socket.close()
+
+
+    def get_custom_reward(self, obs):
+        img = obs[:, 43:51, :].copy()
+
+        res = cv2.matchTemplate(img, self.chicken_pattern, cv2.TM_CCOEFF)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+        return max_loc[1] * self.REWARD_PER_PIXEL
+
+
+    def save_observation(self, obs):
+        img = obs[:, 43:51, :].copy()
+
+        res = cv2.matchTemplate(img, self.chicken_pattern, cv2.TM_CCOEFF)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+        top_left = max_loc
+        bottom_right = (top_left[0] + self.chicken_w, top_left[1] + self.chicken_h)
+        print(top_left)
+
+        cv2.putText(img, str(bottom_right), top_left, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 1)
+        cv2.imwrite(f"/home/moraguma/git/pygame-episode-tracker-environment/test/frame{self.total_steps}.png", cv2.cvtColor(img, cv2.COLOR_RGB2BGR)) 

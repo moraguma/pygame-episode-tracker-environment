@@ -22,11 +22,11 @@ class EnvironmentServer:
         self.terminated = False
 
         self.lose_reward = -1
-        self.max_steps = 99999999999999
+        self.max_steps = 1000
         self.total_steps = 0
 
         self.min_initial_steps = 0
-        self.max_initial_steps = 20
+        self.max_initial_steps = 100
 
         self.chicken_pattern = cv2.cvtColor(cv2.imread("/home/moraguma/git/pygame-episode-tracker-environment/freeway_images/chicken.png"), cv2.COLOR_BGR2RGB)
         w, h = self.chicken_pattern.shape[1], self.chicken_pattern.shape[0]
@@ -45,8 +45,11 @@ class EnvironmentServer:
         self.total_steps = 0
 
         self.observation, _ = self.env.reset()
+
+        pre_steps = np.random.randint(self.min_initial_steps, self.max_initial_steps)
+        for i in range(pre_steps):
+            self.observation, self.reward, self.terminated, _, _ = self.env.step(0)
         self.reward = self.get_custom_reward(self.observation)
-        self.terminated = False
 
         #self.save_observation(self.observation)
 
@@ -75,8 +78,11 @@ class EnvironmentServer:
         #print("Closed action")
 
         if step:
-            for i in range(self.frames_per_action):
+            i = 0
+            self.reward = 0.0
+            while i < self.frames_per_action and self.reward == 0.0:
                 self.observation, self.reward, self.terminated, _, _ = self.env.step(action_data)
+                i += 1
             
             self.total_steps += 1
             if self.reward != 0:
@@ -117,7 +123,7 @@ class EnvironmentServer:
         self.client_socket.close()
         #print("Sent observation")
         self.client_socket, self.client_address = self.server_socket.accept()
-        self.client_socket.send(struct.pack("f", self.reward))
+        self.client_socket.send(str(self.reward).encode())
         self.client_socket.close()
         #print(f"Sent reward - {self.reward}")
         self.client_socket, self.client_address = self.server_socket.accept()

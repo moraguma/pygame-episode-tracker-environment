@@ -15,7 +15,7 @@ class FreewayEnv:
 
         self.lose_reward = -1
         self.step_report = 100
-        self.max_steps = 500
+        self.max_steps = 99999
         self.total_steps = 0
 
         self.min_initial_steps = 0
@@ -39,7 +39,7 @@ class FreewayEnv:
         pre_steps = np.random.randint(self.min_initial_steps, self.max_initial_steps)
         for i in range(pre_steps):
             self.observation, self.reward, self.terminated, _, _ = self.env.step(0)
-        self.reward = self.get_custom_reward(self.observation)
+        #self.reward = self.get_custom_reward(self.observation)
     
 
     def step(self, action_data):
@@ -54,7 +54,8 @@ class FreewayEnv:
             self.reward = self.WIN_REWARD
             print("Won!")
         else:
-            self.reward = self.get_custom_reward(self.observation)
+            pass
+            #self.reward = self.get_custom_reward(self.observation)
 
         if self.total_steps >= self.max_steps:
             self.reward = self.lose_reward

@@ -16,7 +16,7 @@ def callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
 if __name__ == '__main__':
     env = FreewayEnv(gym.make("ALE/Freeway-v5", render_mode="rgb_array"))
     print(env.env.action_space)
-    envServer = EnvironmentServer(env)
+    envServer = EnvironmentServer(env, 1026)
     try:
         envServer.play()
     except KeyboardInterrupt:

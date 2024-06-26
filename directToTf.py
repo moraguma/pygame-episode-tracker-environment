@@ -106,17 +106,18 @@ TRAINING_PARAMETERS = {
     ],
     "optimizer": {
         "type": "adam",
-        "learning_rate": 0.001
+        "learning_rate": 0.00025
     },
     "replay_buffer": {
-        "max_size": 100000
+        "max_size": 10000
     },
     "discount": 0.9,
-    "batch_size": 64,
+    "batch_size": 16,
     "initial_collect_steps": 100
 }
 
-EPISODES = 200
+# Batch size 64 -> 16; Learning rate 0.001 -> 0.00025; Replay buffer max size 100000 -> 10000         BB
+EPISODES = 300
 EVAL_INTERVAL = 3
 EVAL_EPISODES = 1
 
@@ -142,9 +143,8 @@ if __name__ == '__main__':
             avg_reward /= EVAL_EPISODES
 
             print(f"Finished episode {i} - Avg reward {avg_reward}")
-            data[int(i / EVAL_INTERVAL), :] = [int(i / EVAL_INTERVAL), avg_reward]
+            data[int(i / EVAL_INTERVAL), :] = [i, avg_reward]
+            Grapher.create("FreewayTF", 10, data)
 
     train_env.close()
     eval_env.close()
-
-    Grapher.create("FreewayTF", 10, data)

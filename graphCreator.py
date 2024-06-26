@@ -5,7 +5,7 @@ import csv
 class Grapher():
     @staticmethod
     def create(name: str, interval: int, data: np.ndarray) -> None:
-        with open("graphs/{name}.csv", 'w', newline='') as f:
+        with open(f"graphs/{name}.csv", 'w', newline='') as f:
             wr = csv.writer(f, quoting=csv.QUOTE_ALL)
             for i in range(data.shape[0]):
                 wr.writerow([data[i, 0], data[i, 1]])

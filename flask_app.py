@@ -5,7 +5,12 @@ import gym
 import json
 import numpy as np
 import cv2
+import time
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
+global elapsed_time
 global env
 global just_terminated
 
@@ -16,19 +21,26 @@ app = Flask(__name__)
 
 @app.route("/initialize", methods=["POST"])
 def initialize():
+    global elapsed_time
     global env
+
+    time_i = time.time_ns()
 
     env = FreewayEnv(gym.make("ALE/Freeway-v5", render_mode="rgb_array"))
     env.reset()
 
+    elapsed_time = time.time_ns() - time_i
     return {"info": "Agent initialized"}
 
 
 @app.route("/step", methods=["POST"])
 def step():
     if request.method == "POST":
+        global elapsed_time
         global env
         global just_terminated
+
+        time_i = time.time_ns()
 
         data_dict = json.loads(request.data)
 
@@ -37,14 +49,18 @@ def step():
         else:
             just_terminated = False
         
+        elapsed_time += time.time_ns() - time_i
         return {}
 
 
 @app.route("/get", methods=["POST"])
 def get():
     if request.method == "POST":
+        global elapsed_time
         global env
         global just_terminated
+
+        time_i = time.time_ns()
 
         result = {
             "state": encode_state(),
@@ -53,9 +69,16 @@ def get():
         }
 
         if env.terminated:
+            elapsed_time += time.time_ns() - time_i
+            time_i = time.time_ns()
+
+            print("Finished episode - Time elapsed: {:.3f}".format(float(elapsed_time) / 10**9))
+
             env.reset()
             just_terminated = True
         
+        elapsed_time += time.time_ns() - time_i
+
         return result
 
 
